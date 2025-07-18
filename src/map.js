@@ -1,11 +1,12 @@
 import { createApp, reactive, ref, computed, onMounted } from '../lib/vue.esm-browser.js';
 
 const apiUrl = 'https://map.meshcore.dev/api/v1/nodes';
-const keyOrder = ['adv_name', 'type', 'link', 'last_advert', 'public_key', 'coords', 'params' ]
+const keyOrder = ['adv_name', 'type', 'link', 'inserted_date', 'updated_date', 'public_key', 'coords', 'params' ]
 const humanLabel = {
 	coords: 'Coordinates',
 	adv_name: 'Name',
-	last_advert: 'Last heard',
+	inserted_date: 'Inserted',
+	updated_date: 'Last updated',
 	public_key: 'Public key',
 	type: 'Node type',
 	params: 'Radio params',
@@ -20,7 +21,10 @@ const types = {
 };
 
 const humanValue = {
-	last_advert(val) {
+	inserted_date(val) {
+		return new Date(val).toLocaleString();
+	},
+	updated_date(val) {
 		return new Date(val).toLocaleString();
 	},
 	coords(val) {
