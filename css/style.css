@@ -131,6 +131,9 @@ table.node-info tr td:last-child {
 	width: 16px;
 	min-inline-size: 0px !important;
 }
+.stats a.github {
+	margin-right: 15px;
+}
 .search {
 	position: fixed;
 	z-index: 1000;

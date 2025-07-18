@@ -1,6 +1,6 @@
 import { createApp, reactive, ref, computed, onMounted } from '../lib/vue.esm-browser.js';
 
-const apiUrl = '/api/v1/nodes';
+const apiUrl = 'https://map.meshcore.dev/api/v1/nodes';
 const keyOrder = ['adv_name', 'type', 'link', 'last_advert', 'public_key', 'coords', 'params' ]
 const humanLabel = {
 	coords: 'Coordinates',

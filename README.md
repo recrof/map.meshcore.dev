@@ -3,7 +3,7 @@ Official MeshCore Map (frontend)
 
 ## Installation
 This is fully static and build-free site, cloning it to web location that can serve static content should be enough.
-It uses backend api deployed on https://meshcore.dev/api/v1/nodes, so you will need to edit `apiUrl` in `src/map.js`.
+It uses backend api deployed on https://meshcore.dev/api/v1/nodes
 
 ## Libraries used
 * [Vue3](https://github.com/vuejs/core)
