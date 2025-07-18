@@ -1,0 +1,203 @@
+@font-face {
+	font-family: Material Symbols Outlined;
+	font-style: normal;
+	font-weight: 400;
+	font-display: block;
+	src: url(https://cdn.jsdelivr.net/npm/beercss@3.9.4/dist/cdn/material-symbols-outlined.woff2) format("woff2")
+}
+
+[v-cloak] {
+	display: none !important;
+}
+
+body { margin: 0; }
+body:has(dialog[open])::after {
+	content: '';
+	position: absolute;
+	z-index: 1049;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	backdrop-filter: blur(10px);
+}
+
+dialog[open] {
+	z-index: 1050 !important;
+}
+
+#map { height: 100vh; }
+table.node-info {
+	table-layout: fixed;
+	width: 100%;
+}
+table.node-info td {
+	padding: 2px 0;
+}
+
+table.node-info tr td:first-child {
+	width: 150px;
+}
+table.node-info tr td:last-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.search-results {
+	max-height: 90vh;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+.search-results li {
+	overflow: hidden;
+}
+
+.search-pkey {
+	max-width: 400px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+#app {
+	display: flex;
+	justify-content: center;
+}
+.add-dialog {
+	z-index: 1050;
+	padding: 15px;
+	max-height: 80vh;
+}
+
+.add-dialog .page {
+	text-align: center;
+}
+
+.add-dialog .page img {
+	max-width: 50%;
+	max-height: 300px;
+}
+
+@media (max-width: 800px) {
+	.add-dialog {
+		width: 95%;
+		max-height: 100vh;
+	}
+}
+
+.pointer-help {
+	cursor: help
+}
+
+.stats {
+	position: fixed;
+	z-index: 1000;
+	top: 0;
+	left: 0;
+	display: flex;
+	align-self: center;
+	align-items: center;
+	flex-direction: row;
+	flex-wrap: wrap;
+	column-gap: 15px;
+	row-gap: 32px;
+	height: 30px;
+	width: 100%;
+	min-width: 700px;
+	overflow-y: hidden;
+	overflow-x: auto;
+	color: #000;
+	background-color: #ffffff55;
+	backdrop-filter: blur(10px);
+	padding-left: 15px;
+}
+
+.stats > span {
+	line-height: 0;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.stats i.node-type {
+	background-color: #667a8c;
+	border-radius: 50%;
+	font-size: 14px;
+	color: #fff;
+	margin-left: 7px;
+	margin-right: 4px;
+}
+
+.stats a img {
+	width: 16px;
+	min-inline-size: 0px !important;
+}
+.search {
+	position: fixed;
+	z-index: 1000;
+	display: flex;
+	flex-direction: column;
+	padding: 10px;
+	top: 30px;
+	max-width: 600px;
+	flex-grow: 1;
+	width: calc(100% - 20px);
+	align-self: center;
+	justify-content: center;
+	gap: 5px;
+}
+.search .field {
+	width: 100%;
+	display: flex;
+}
+
+.search .submit {
+	width: 12px;
+	height: 35px;
+}
+
+.search .filter {
+	margin-top: 5px;
+}
+
+.search-text b {
+	background-color: #ee0;
+}
+button.manual-add {
+	position: fixed;
+	z-index: 1000;
+	display: block;
+	bottom: 55px;
+	right: 10px;
+	width: 50px;
+	height: 50px;
+	border-radius: 5px;
+}
+button.manual-add::after {
+	font-size: 40px;
+	content: '+';
+	color: #fff;
+}
+
+.leaflet-bottom {
+	position: fixed !important;
+}
+.leaflet-control-layers-list {
+	margin-block-start: 0 !important;
+}
+.leaflet-bottom .leaflet-control-layers {
+	margin-bottom: 55px !important;
+}
+.marker-cluster span {
+	color: #000;
+	font-weight: 800;
+}
+
+.leaflet-popup-close-button span {
+	font-size: 30px;
+	padding: 5px;
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+	width: auto !important;
+	height: auto !important;
+}

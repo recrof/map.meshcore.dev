@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" href="./css/style.css" />
+		<link rel="stylesheet" href="./lib/css/beer.css" />
+		<link rel="stylesheet" href="./lib/css/leaflet.css" />
+		<link rel="stylesheet" href="./lib/css/MarkerCluster.css" />
+		<link rel="stylesheet" href="./lib/css/MarkerCluster.Default.css" />
+		<script src="./lib/beer.min.js" type="module"></script>
+		<script src="./lib/leaflet.js"></script>
+		<script src="./lib/leaflet.markercluster.js"></script>
+		<meta name="viewport" content="initial-scale=1.0, width=device-width" />
+		<title>MeshCore Node Map</title>
+	</head>
+	<body class="light">
+		<div class="container">
+			<div id="map"></div>
+			<div id="app" v-if="app.nodes" v-cloak>
+				<dialog class="add-dialog background no-round" ref="dialogAddNode">
+					<h6>Add node / Replace node</h6>
+					<div>
+						<div class="tabs">
+							<a class="active" data-ui="#add-self" tabindex="0">Your Node</a>
+							<a data-ui="#add-contact" tabindex="0">From Contacts</a>
+						</div>
+						<div class="page active" id="add-self">
+							<img src="./img/button_self.jpg">
+							<img src="./img/share_self.jpg">
+						</div>
+						<div class="page" id="add-contact">
+							<img src="./img/button_contact.jpg">
+							<img src="./img/share_contact.jpg">
+						</div>
+					</div>
+					<div class="small-space"></div>
+					<div>
+						Please paste your meshcore link.<br>
+						If you use link with same public key as node already on the map, it will get replaced.
+					</div>
+					<div class="field border"><input placeholder="meshcore:// link" v-model="app.link"></div>
+					<nav class="right-align">
+						<button class="transparent link" @click="dialogAddNode.close()">Cancel</button>
+						<button class="transparent link" @click="addNode">Submit</button>
+					</nav>
+				</dialog>
+				<button class="manual-add square round light-blue extra" title="add node from meshcore:// link" @click="dialogAddNode.showModal()"><i class="extra">add</i></button>
+				<div class="stats">
+						<span title="Stats">
+							<i>monitoring</i>
+						</span>
+						<span v-for="stat in stats" v-html="stat"></span>
+					</a>
+				</div>
+				<form class="search no-margin" action="javascript:;">
+					<div class="field border no-margin">
+						<input type="text" class="background" list="nodes" v-model="app.search" placeholder="Search Nodes">
+						<!--button class="filter circle transparent" data-ui="#node-filter">
+							<i>filter_alt</i>
+						</button>
+						<menu class="left no-wrap" id="node-filter" data-ui="#node-filter">
+							<li>
+								<label class="checkbox">
+									<input type="checkbox" value="1" v-model="app.nodeFilter"><span>Clients</span>
+								</label>
+							</li>
+							<li>
+								<label class="checkbox">
+									<input type="checkbox" value="2" v-model="app.nodeFilter"><span>Repeaters</span>
+								</label>
+							</li>
+							<li>
+								<label class="checkbox">
+									<input type="checkbox" value="3" v-model="app.nodeFilter"><span>Room Servers</span>
+								</label>
+							</li>
+							<li>
+								<label class="checkbox">
+									<input type="checkbox" value="3" v-model="app.nodeFilter"><span>Sensors</span>
+								</label>
+							</li>
+						</menu-->
+					</div>
+					<article class="search-results no-margin no-padding" v-if="searchResults?.length > 0">
+						<ul class="list no-space border">
+							<li v-for="node in searchResults" tabindex="0" @click="showNode(node)" @keyup.enter="showNode(node)">
+								<img :src="`./img/node_types/${node.type}.svg`" width="32">
+								<div class="max search-text">
+									<h6 class="small" v-html="highlightString(node.adv_name, app.search)"></h6>
+									<div class="search-pkey" v-html="highlightString(node.public_key, app.search)"></div>
+								</div>
+							</li>
+						</ul>
+					</article>
+				</form>
+			</div>
+		</div>
+	</body>
+	<script type="module" src="./src/map.js"></script>
+</html>
