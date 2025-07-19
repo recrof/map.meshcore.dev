@@ -1,4 +1,4 @@
-import { createApp, reactive, ref, computed, watch, onMounted } from '../lib/vue.esm-browser.js';
+import { createApp, reactive, ref, computed, watch, onMounted, toRaw } from '../lib/vue.esm-browser.js';
 import * as ntools from './node-utils.js';
 
 const apiUrl = 'https://map.meshcore.dev/api/v1/nodes';
@@ -239,7 +239,7 @@ createApp({
 			}
 
 			for(const node of nodes) {
-				markerClusterGroup.addLayer(node.marker);
+				markerClusterGroup.addLayer(toRaw(node.marker));
 			}
 
 			map.addLayer(markerClusterGroup);
