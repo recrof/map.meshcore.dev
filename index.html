@@ -59,8 +59,9 @@
 				<form class="search no-margin" action="javascript:;">
 					<div class="field border no-margin">
 						<input type="text" class="background" list="nodes" v-model="app.search" placeholder="Search Nodes">
-						<!--button class="filter circle transparent" data-ui="#node-filter">
+						<button class="filter" :class="{ circle: !filtersActive, transparent: !filtersActive, 'error-container': filtersActive }" data-ui="#node-filter">
 							<i>filter_alt</i>
+							<span v-if="filtersActive">Filters active</span>
 						</button>
 						<menu class="left no-wrap" id="node-filter" data-ui="#node-filter">
 							<li>
@@ -80,10 +81,24 @@
 							</li>
 							<li>
 								<label class="checkbox">
-									<input type="checkbox" value="3" v-model="app.nodeFilter"><span>Sensors</span>
+									<input type="checkbox" value="4" v-model="app.nodeFilter"><span>Sensors</span>
 								</label>
 							</li>
-						</menu-->
+							<li class="padding">
+								<div class="field label prefix fill small">
+									<i>today</i>
+									<input type="date" v-model="app.fromDate" placeholder=" ">
+									<label>Inserted from</label>
+								</div>
+							</li>
+							<li style="flex-direction:column;gap:0">
+								<span>Clustering zoom level</span>
+								<label class="slider tiny">
+									<input min="10" max="17" type="range" v-model="app.clusteringZoom">
+									<span></span>
+								</label>
+							</li>
+						</menu>
 					</div>
 					<article class="search-results no-margin no-padding" v-if="searchResults?.length > 0">
 						<ul class="list no-space border">

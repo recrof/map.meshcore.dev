@@ -1,4 +1,5 @@
-import { createApp, reactive, ref, computed, onMounted } from '../lib/vue.esm-browser.js';
+import { createApp, reactive, ref, computed, watch, onMounted } from '../lib/vue.esm-browser.js';
+import * as ntools from './node-utils.js';
 
 const apiUrl = 'https://map.meshcore.dev/api/v1/nodes';
 const keyOrder = ['adv_name', 'type', 'link', 'inserted_date', 'updated_date', 'public_key', 'coords', 'params' ]
@@ -39,6 +40,24 @@ const humanValue = {
 	params(val) {
 		return Object.entries(val).map(([key, val]) => `${key}=${val}`).join(', ')
 	}
+}
+
+function getSvgIconUrl(text, color) {
+	const svg = `
+	<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg" >
+		<style>
+		text { font: bold 150pt sans-serif; fill: #fff; }
+		</style>
+		<ellipse cx="50%" cy="50%" rx="50%" ry="50%" fill="${color}"/>
+		<text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle">${text}</text>
+	</svg>`;
+
+	return L.icon({
+		iconUrl: URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })),
+		iconSize: [32, 32],
+		iconAnchor: [17, 17],
+		popupAnchor: [0, -16],
+	});
 }
 
 function clearLocationHash () {
@@ -118,11 +137,17 @@ createApp({
 	setup() {
 		const dialogAddNode = ref();
 		const app = window.app = reactive({
-			nodes: null,
+			nodes: [],
+			nodesByType: {},
+			filteredNodes: [],
 			search: '',
 			link: '',
-			nodeFilter: [1, 2, 3, 4]
+			nodeFilter: [],
+			fromDate: '2025-03-01',
+			clusteringZoom: 12,
 		});
+
+		const filtersActive = computed(() => app.filteredNodes.length && app.nodes.length !== app.filteredNodes.length);
 
 		const stats = computed(() => {
 			const nodes = app.nodes;
@@ -146,32 +171,78 @@ createApp({
 		const searchResults = computed(() => {
 			if(!app.search) { return [] }
 
-			return app.nodes.filter(
+			return app.filteredNodes.filter(
 				node => node.adv_name.toLowerCase().includes(app.search.toLowerCase()) || node.public_key.startsWith(app.search)
 			).toSorted(
 				(a, b) => a.adv_name.localeCompare(b.adv_name)
 			).slice(0, 20);
-		})
+		});
 
-		async function refreshMap(refresh, noDownload) {
-			if(!noDownload) {
+		watch([
+				() => app.nodeFilter,
+				() => app.fromDate,
+			],
+			() => {
+				const fromDate = new Date(app.fromDate);
+				app.filteredNodes = app.nodeFilter
+					.flatMap(type => app.nodesByType[type])
+					.filter(node => node && (node.updatedDate ? node.updatedDate > fromDate : node.insertDate > fromDate));
+				console.log('refresh', app.nodeFilter, app.filteredNodes.length);
+				refreshMap({ download: false });
+			}
+		);
+
+		watch(() => app.clusteringZoom, () => {
+			refreshMap({ download: false, clusteringZoom: app.clusteringZoom });
+		});
+
+		let markerClusterGroup = L.markerClusterGroup({
+			disableClusteringAtZoom: app.clusteringZoom
+		});
+
+		async function refreshMap({ download = true, clusteringZoom = 0 } = {}) {
+			if(download) {
 				const nodesReq = await fetch(apiUrl);
 				app.nodes = await nodesReq.json();
+				for(const node of app.nodes) {
+					let icon = icons[node.type.toString()];
+					(app.nodesByType[node.type] ??= []).push(node);
+
+					if(node.type === 1) {
+						const label = ntools.getNameIconLabel(node.adv_name);
+						const color = ntools.getColourForName(node.adv_name);
+						icon = getSvgIconUrl(label, color);
+					}
+
+					const marker = node.marker = L.marker(
+						[node.adv_lat, node.adv_lon], { icon, title: node.adv_name }
+					);
+
+					node.coords = `${node.adv_lat.toFixed(4)}, ${node.adv_lon.toFixed(4)}`;
+					node.lastAdvertDate = new Date(node.last_advert);
+					node.insertDate = new Date(node.inserted_date);
+					node.updatedDate = node.updated_date && new Date(node.updated_date);
+					const popup = L.popup({ minWidth: 350, maxWidth: 350, content: getTable(node) });
+					marker.bindPopup(popup);
+				}
 			}
-			const markers = L.markerClusterGroup();
-			for(const node of app.nodes) {
-				const marker = L.marker([node.adv_lat, node.adv_lon], { icon: icons[node.type.toString()], title: node.adv_name });
-				node.marker = marker;
-				node.coords = `${node.adv_lat.toFixed(4)}, ${node.adv_lon.toFixed(4)}`;
-				node.lastAdvertDate = new Date(node.last_advert);
-				const popup = L.popup({ minWidth: 350, maxWidth: 350, content: getTable(node) });
-				marker.bindPopup(popup);
-				markers.addLayer(marker);
+
+			markerClusterGroup.clearLayers();
+			const nodes = app.filteredNodes.length > 0 ? app.filteredNodes : app.nodes;
+
+			map.removeLayer(markerClusterGroup);
+
+			if(clusteringZoom) {
+				markerClusterGroup = L.markerClusterGroup({
+					disableClusteringAtZoom: clusteringZoom
+				});
 			}
-			if(refresh) {
-				map.eachLayer(layer => layer.clearLayers());
+
+			for(const node of nodes) {
+				markerClusterGroup.addLayer(node.marker);
 			}
-			map.addLayer(markers);
+
+			map.addLayer(markerClusterGroup);
 		}
 
 		async function addNode() {
@@ -207,25 +278,26 @@ createApp({
 			return escapedSource.replace(highlightString, `<b>${highlightString}</b>`);
 		}
 
-		refreshMap();
-
 		map.on('moveend', function(e) {
 			const pos = map.getCenter();
 			const zoom = map.getZoom();
 			history.replaceState({}, '', `/?lat=${pos.lat.toFixed(4)}&lon=${pos.lng.toFixed(4)}&zoom=${zoom}`);
 		});
 
+		refreshMap();
+
 		onMounted(() => {
+			app.nodeFilter = ['1', '2', '3', '4'];
 			if(location.hash === '#add-new-node') {
 				dialogAddNode.value.showModal();
-				dialogAddNode.value.addEventListener("close", () => clearLocationHash());
+				dialogAddNode.value.addEventListener('close', () => clearLocationHash());
 			}
 		})
 
 		window.refreshMap = refreshMap;
 		return {
 			app, refreshMap, addNode,
-			stats, searchResults,
+			stats, searchResults, filtersActive,
 			showNode, dialogAddNode, highlightString
 		}
 	},
