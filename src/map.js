@@ -1,18 +1,6 @@
 import { createApp, reactive, ref, computed, watch, onMounted, toRaw } from '../lib/vue.esm-browser.js';
 import * as ntools from './node-utils.js';
-
 const apiUrl = 'https://map.meshcore.dev/api/v1/nodes';
-const keyOrder = ['adv_name', 'type', 'link', 'inserted_date', 'updated_date', 'public_key', 'coords', 'params' ]
-const humanLabel = {
-	coords: 'Coordinates',
-	adv_name: 'Name',
-	inserted_date: 'Inserted',
-	updated_date: 'Last updated',
-	public_key: 'Public key',
-	type: 'Node type',
-	params: 'Radio params',
-	link: 'Meshcore link',
-};
 
 const types = {
 	'1': 'Client',
@@ -21,26 +9,39 @@ const types = {
 	'4': 'Sensor'
 };
 
-const humanValue = {
-	inserted_date(val) {
-		return new Date(val).toLocaleString();
+const columnOrder = ['adv_name', 'type', 'link', 'inserted_date', 'updated_date', 'public_key', 'coords', 'params' ];
+const columns = {
+	coords: {
+		label: 'Coordinates',
+		value: (val) => `<a target="_blank" href="https://google.com/maps/place/${val.replace(' ', '')}">${val}</a>`
 	},
-	updated_date(val) {
-		return new Date(val).toLocaleString();
+	adv_name: {
+		label: 'Name'
 	},
-	coords(val) {
-		return `<a target="_blank" href="https://google.com/maps/place/${val.replace(' ', '')}">${val}</a>`;
+	inserted_date: {
+		label: 'Inserted date',
+		value: (val) => new Date(val).toLocaleString()
 	},
-	type(val) {
-		return types[val];
+	updated_date: {
+		label: 'Updated date',
+		value: (val) => new Date(val).toLocaleString()
 	},
-	link(val) {
-		return `<a href="javascript:navigator.clipboard.writeText('${val}')">Copy to clipboard</a>`
+	public_key: {
+		label: 'Public key'
 	},
-	params(val) {
-		return Object.entries(val).map(([key, val]) => `${key}=${val}`).join(', ')
-	}
-}
+	type: {
+		label: 'Node type',
+		value: (val) => types[val]
+	},
+	params: {
+		label: 'Radio params',
+		value: (val) => Object.entries(val).map(([key, val]) => `${key}=${val}`).join(', ')
+	},
+	link: {
+		label: 'Meshcore link',
+		value: (val) => `<a href="javascript:navigator.clipboard.writeText('${val}')">Copy to clipboard</a>`
+	},
+};
 
 function getSvgIconUrl(text, color) {
 	const svg = `
@@ -66,7 +67,7 @@ function clearLocationHash () {
 
 function getTable(node) {
 	return '<table class="node-info"><tbody>'+
-		'<tr>' + keyOrder.flatMap(key => node[key] ? [`<td><b>${humanLabel[key]}</b></td><td>${ humanValue[key] ? humanValue[key](node[key]) : node[key] }</td>`] : [] ).join('</tr><tr>') + '</tr>'+
+		'<tr>' + columnOrder.flatMap(key => node[key] ? [`<td><b>${columns[key].label}</b></td><td>${ columns[key].value ? columns[key].value(node[key]) : node[key] }</td>`] : [] ).join('</tr><tr>') + '</tr>'+
 	'</tbody></table>';
 }
 
@@ -102,12 +103,14 @@ const baseMaps = {
 	}),
 };
 
-let initCoords = { lat: 7, lon: 25, zoom: 3 };
+let params = { lat: 7, lon: 25, zoom: 3 };
 
 const urlParams = Object.fromEntries(new URLSearchParams(location.search));
-if(!(isNaN(urlParams.lat) || isNaN(urlParams.lon) || isNaN(urlParams.zoom))) {
-	initCoords = urlParams
+if(Number(urlParams.lat) && Number(urlParams.lon) && Number(urlParams.zoom)) {
+	params = urlParams
 }
+
+// console.log(params);
 
 const map = window.leafletMap = leaflet.map('map', {
 	minZoom: 2,
@@ -117,7 +120,7 @@ const map = window.leafletMap = leaflet.map('map', {
 	],
 	layers: baseMaps[baseMapSelected],
 	zoomControl: false
-}).setView([initCoords.lat, initCoords.lon], initCoords.zoom);
+}).setView([params.lat, params.lon], params.zoom);
 
 map.on('baselayerchange', function(ev) {
 	localStorage.setItem('baseMapSelected', ev.name);
@@ -143,90 +146,12 @@ createApp({
 			search: '',
 			link: '',
 			nodeFilter: [],
-			fromDate: '2025-03-01',
+			fromDate: '',
 			clusteringZoom: 12,
+			urlParams
 		});
 
-		const filtersActive = computed(() => app.filteredNodes.length && app.nodes.length !== app.filteredNodes.length);
-
-		const stats = computed(() => {
-			const nodes = app.nodes;
-
-			if(!nodes) return [];
-
-			const result = [];
-			result.push(`
-				<span>total: <b>${nodes.length}</b></span>&nbsp;|
-				<i class="node-type pointer-help" title="Total client nodes">person</i><b>${nodes.filter(n => n.type === 1).length}</b>&nbsp;|
-				<i class="node-type pointer-help" title="Total repeater nodes">cell_tower</i><b>${nodes.filter(n => n.type === 2).length}</b>&nbsp;|
-				<i class="node-type pointer-help" title="Total room server nodes">forum</i><b>${nodes.filter(n => n.type === 3).length}</b>
-			`);
-			result.push(`<span class="pointer-help" title="Nodes added in last 24 hours">24h: <b>${app.nodes.filter(n => isNewerThan(n.inserted_date, 1)).length}</b></span>`);
-			result.push(`<span class="pointer-help" title="Nodes added in last 7 days">7d: <b>${app.nodes.filter(n => isNewerThan(n.inserted_date, 7)).length}</b></span>`);
-			result.push(`<span class="pointer-help" title="Nodes added in last 30 days">30d: <b>${app.nodes.filter(n => isNewerThan(n.inserted_date, 30)).length}</b></span>`);
-
-			return result;
-		});
-
-		const searchResults = computed(() => {
-			if(!app.search) { return [] }
-
-			return app.filteredNodes.filter(
-				node => node.adv_name.toLowerCase().includes(app.search.toLowerCase()) || node.public_key.startsWith(app.search)
-			).toSorted(
-				(a, b) => a.adv_name.localeCompare(b.adv_name)
-			).slice(0, 20);
-		});
-
-		watch([
-				() => app.nodeFilter,
-				() => app.fromDate,
-			],
-			() => {
-				const fromDate = new Date(app.fromDate);
-				app.filteredNodes = app.nodeFilter
-					.flatMap(type => app.nodesByType[type])
-					.filter(node => node && (node.updatedDate ? node.updatedDate > fromDate : node.insertDate > fromDate));
-				console.log('refresh', app.nodeFilter, app.filteredNodes.length);
-				refreshMap({ download: false });
-			}
-		);
-
-		watch(() => app.clusteringZoom, () => {
-			refreshMap({ download: false, clusteringZoom: app.clusteringZoom });
-		});
-
-		let markerClusterGroup = L.markerClusterGroup({
-			disableClusteringAtZoom: app.clusteringZoom
-		});
-
-		async function refreshMap({ download = true, clusteringZoom = 0 } = {}) {
-			if(download) {
-				const nodesReq = await fetch(apiUrl);
-				app.nodes = await nodesReq.json();
-				for(const node of app.nodes) {
-					let icon = icons[node.type.toString()];
-					(app.nodesByType[node.type] ??= []).push(node);
-
-					if(node.type === 1) {
-						const label = ntools.getNameIconLabel(node.adv_name);
-						const color = ntools.getColourForName(node.adv_name);
-						icon = getSvgIconUrl(label, color);
-					}
-
-					const marker = node.marker = L.marker(
-						[node.adv_lat, node.adv_lon], { icon, title: node.adv_name }
-					);
-
-					node.coords = `${node.adv_lat.toFixed(4)}, ${node.adv_lon.toFixed(4)}`;
-					node.lastAdvertDate = new Date(node.last_advert);
-					node.insertDate = new Date(node.inserted_date);
-					node.updatedDate = node.updated_date && new Date(node.updated_date);
-					const popup = L.popup({ minWidth: 350, maxWidth: 350, content: getTable(node) });
-					marker.bindPopup(popup);
-				}
-			}
-
+		async function refreshMap({ clusteringZoom = 0 } = {}) {
 			markerClusterGroup.clearLayers();
 			const nodes = app.filteredNodes.length > 0 ? app.filteredNodes : app.nodes;
 
@@ -278,16 +203,128 @@ createApp({
 			return escapedSource.replace(highlightString, `<b>${highlightString}</b>`);
 		}
 
+		function clearFilters() {
+			app.nodeFilter = [1,2,3,4];
+			app.fromDate = '2025-03-01';
+			app.cluster = 12;
+		}
+
+		async function downloadNodes() {
+			const nodesReq = await fetch(apiUrl);
+			app.nodes = await nodesReq.json();
+			for(const node of app.nodes) {
+				let icon = icons[node.type.toString()];
+				(app.nodesByType[node.type] ??= []).push(node);
+
+				if(node.type === 1) {
+					const label = ntools.getNameIconLabel(node.adv_name);
+					const color = ntools.getColourForName(node.adv_name);
+					icon = getSvgIconUrl(label, color);
+				}
+
+				const marker = node.marker = L.marker(
+					[node.adv_lat, node.adv_lon], { icon, title: node.adv_name }
+				);
+
+				node.coords = `${node.adv_lat.toFixed(4)}, ${node.adv_lon.toFixed(4)}`;
+				node.lastAdvertDate = new Date(node.last_advert);
+				node.insertDate = new Date(node.inserted_date);
+				node.updatedDate = node.updated_date && new Date(node.updated_date);
+				const popup = L.popup({ minWidth: 350, maxWidth: 350, content: getTable(node) });
+				marker.bindPopup(popup);
+			}
+		}
+
+		clearFilters();
+
+		const filtersActive = computed(() => app.filteredNodes.length && app.nodes.length !== app.filteredNodes.length);
+
+		watch(
+			[
+				() => app.nodeFilter,
+				() => app.fromDate,
+			],
+			() => {
+				const fromDate = new Date(app.fromDate);
+				app.filteredNodes = app.nodeFilter
+					.flatMap(type => app.nodesByType[type])
+					.filter(node => node && (node.updatedDate ? node.updatedDate > fromDate : node.insertDate > fromDate));
+				console.log('refresh', app.nodeFilter, app.filteredNodes.length);
+				app.urlParams.nodes = app.nodeFilter.join(',');
+				app.urlParams.date = app.fromDate;
+				refreshMap({ download: false });
+			}
+		);
+
+		watch(() => app.clusteringZoom, () => {
+			app.urlParams.cluster = app.clusteringZoom;
+			refreshMap({ download: false, clusteringZoom: app.clusteringZoom });
+		});
+
+		const stats = computed(() => {
+			const nodes = app.nodes;
+
+			if(!nodes) return [];
+
+			const result = [];
+			result.push(`
+				<span>total: <b>${nodes.length}</b></span>&nbsp;|
+				<i class="node-type pointer-help" title="Total client nodes">person</i><b>${nodes.filter(n => n.type === 1).length}</b>&nbsp;|
+				<i class="node-type pointer-help" title="Total repeater nodes">cell_tower</i><b>${nodes.filter(n => n.type === 2).length}</b>&nbsp;|
+				<i class="node-type pointer-help" title="Total room server nodes">forum</i><b>${nodes.filter(n => n.type === 3).length}</b>
+			`);
+			result.push(`<span class="pointer-help" title="Nodes added in last 24 hours">24h: <b>${app.nodes.filter(n => isNewerThan(n.inserted_date, 1)).length}</b></span>`);
+			result.push(`<span class="pointer-help" title="Nodes added in last 7 days">7d: <b>${app.nodes.filter(n => isNewerThan(n.inserted_date, 7)).length}</b></span>`);
+			result.push(`<span class="pointer-help" title="Nodes added in last 30 days">30d: <b>${app.nodes.filter(n => isNewerThan(n.inserted_date, 30)).length}</b></span>`);
+
+			return result;
+		});
+
+		const searchResults = computed(() => {
+			if(!app.search) { return [] }
+
+			return app.filteredNodes.filter(
+				node => node.adv_name.toLowerCase().includes(app.search.toLowerCase()) || node.public_key.startsWith(app.search)
+			).toSorted(
+				(a, b) => a.adv_name.localeCompare(b.adv_name)
+			).slice(0, 20);
+		});
+
+		let markerClusterGroup = L.markerClusterGroup({
+			disableClusteringAtZoom: app.clusteringZoom
+		});
+
+		watch(
+			() => app.urlParams,
+			() => {
+				history.replaceState({}, '', `/?${new URLSearchParams(app.urlParams)}`);
+			},
+			{ deep: true }
+		);
+
 		map.on('moveend', function(e) {
 			const pos = map.getCenter();
 			const zoom = map.getZoom();
-			history.replaceState({}, '', `/?lat=${pos.lat.toFixed(4)}&lon=${pos.lng.toFixed(4)}&zoom=${zoom}`);
+			app.urlParams.zoom = zoom;
+			app.urlParams.lat = pos.lat.toFixed(4);
+			app.urlParams.lon = pos.lng.toFixed(4);
 		});
 
-		refreshMap();
-
 		onMounted(() => {
-			app.nodeFilter = ['1', '2', '3', '4'];
+
+			downloadNodes().then(() => {
+				if(urlParams.nodes) {
+					app.nodeFilter = urlParams.nodes.split(',');
+				}
+				if(urlParams.date) {
+					app.fromDate = urlParams.date
+				}
+				if(urlParams.cluster) {
+					app.clusteringZoom = urlParams.cluster;
+				}
+				refreshMap();
+			})
+
 			if(location.hash === '#add-new-node') {
 				dialogAddNode.value.showModal();
 				dialogAddNode.value.addEventListener('close', () => clearLocationHash());
@@ -298,7 +335,8 @@ createApp({
 		return {
 			app, refreshMap, addNode,
 			stats, searchResults, filtersActive,
-			showNode, dialogAddNode, highlightString
+			showNode, dialogAddNode, highlightString,
+			clearFilters
 		}
 	},
 }).mount('#app')
