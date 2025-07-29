@@ -88,7 +88,7 @@
 								<div class="field label prefix fill small">
 									<i>today</i>
 									<input type="date" v-model="app.fromDate" placeholder=" ">
-									<label>Inserted from</label>
+									<label>Last updated</label>
 								</div>
 							</li>
 							<li style="flex-direction:column;gap:0">
@@ -97,6 +97,9 @@
 									<input min="10" max="17" type="range" v-model="app.clusteringZoom">
 									<span></span>
 								</label>
+							</li>
+							<li v-if="filtersActive">
+								<button class="small max" @click="clearFilters">Clear filters</button>
 							</li>
 						</menu>
 					</div>
